@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: drm-lab
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NO_MINIO
+        value: "0"
