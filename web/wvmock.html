@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRM LAB — 4-bosqich: MockWidevine + software-HDCP</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<style>
+ body{font-family:system-ui,Arial;background:#0f1115;color:#e6e6e6;margin:0;padding:24px;max-width:900px}
+ h1{font-size:19px}
+ .player{position:relative;border-radius:8px;overflow:hidden}
+ video{width:100%;display:block;background:#000}
+ /* software-HDCP: himoya buzilsa video ustini qoplaydigan qora qatlam */
+ #guard{position:absolute;inset:0;background:#000;display:none;align-items:center;justify-content:center;
+   color:#f06a6a;font-weight:700;font-size:18px;text-align:center;z-index:5}
+ #guard.on{display:flex}
+ /* forensik watermark — sessiya ID bilan, ekran yozuviga tushadi */
+ #wm{position:absolute;color:rgba(255,255,255,.18);font-size:13px;z-index:4;pointer-events:none;
+   top:10px;left:10px;text-shadow:0 0 2px #000}
+ #log{background:#1a1d24;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px;
+   font-family:monospace;font-size:13px;white-space:pre-wrap;min-height:60px}
+ select{background:#1a1d24;color:#e6e6e6;border:1px solid #333;border-radius:6px;padding:6px}
+ .ok{color:#6fcf7f}.bad{color:#f06a6a}.muted{color:#8a8f98}
+</style>
+</head>
+<body>
+<h1>🔐 4-bosqich: MockWidevine license + software-HDCP</h1>
+<p class="muted">Qurilma:
+ <select id="dev">
+  <option value="CHROME-L1-001">CHROME-L1-001 (L1, ishonchli)</option>
+  <option value="ANDROID-L3-ROOT">ANDROID-L3-ROOT (L3, root telefon)</option>
+  <option value="LEAKED-CDM-X">LEAKED-CDM-X (revoke qilingan)</option>
+  <option value="UNKNOWN-DEV">UNKNOWN-DEV (ro'yxatda yo'q)</option>
+ </select>
+ talab: <select id="lvl"><option>L1</option><option>L3</option></select>
+</p>
+<div class="player">
+  <div id="wm"></div>
+  <div id="guard">⛔ HIMOYA: kontent himoyalangan muhit talab qiladi</div>
+  <video id="v" controls muted playsinline></video>
+</div>
+<div id="log"></div>
+<script>
+const log=(m,c='')=>{const d=document.getElementById('log');d.innerHTML+=`<div class="${c}">${m}</div>`;};
+const sessionId = 'S-' + Math.random().toString(36).slice(2,8).toUpperCase();
+
+// --- software-HDCP himoya qatlami ---
+function blank(reason){ document.getElementById('guard').classList.add('on');
+  const v=document.getElementById('v'); try{v.pause();}catch(e){} log('⛔ HDCP: '+reason,'bad'); }
+function unblank(){ document.getElementById('guard').classList.remove('on'); }
+// 1) DevTools ochilishini aniqlash (o'lcham farqi evristikasi)
+setInterval(()=>{ const t=160;
+  if(window.outerWidth-window.innerWidth>t || window.outerHeight-window.innerHeight>t) blank('DevTools aniqlandi'); },1000);
+// 2) Tab fokusdan ketsa / yashirilsa qora (ekran yozuviga qarshi)
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) blank('tab yashirildi'); });
+window.addEventListener('blur',()=>blank('oyna fokusdan ketdi'));
+window.addEventListener('focus',()=>{ if(window.outerWidth-window.innerWidth<=160) unblank(); });
+// 3) PrintScreen / o'ng tugma — faqat videoni qora qilamiz (clipboard'ga tegmaymiz: taqiq yo'q)
+document.addEventListener('keyup',e=>{ if(e.key==='PrintScreen'){ blank('PrintScreen bosildi'); }});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+// 4) Forensik watermark — harakatlanadi (crop qilib bo'lmaydi)
+const wm=document.getElementById('wm');
+setInterval(()=>{ wm.textContent='student · '+sessionId+' · '+new Date().toLocaleTimeString();
+  wm.style.top=(8+Math.random()*80)+'%'; wm.style.left=(4+Math.random()*70)+'%'; },2500);
+
+// --- brauzerdagi CDM: ECDH P-256 bilan K ni ochadi (tarmoqdan ochiq kelmaydi) ---
+function b64u(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function hex(buf){return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+function hexToBuf(h){const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;}
+
+async function acquireKey(token, deviceId, requireLevel){
+  // CDM ephemeral ECDH kaliti (WebCrypto)
+  const kp=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+  const raw=await crypto.subtle.exportKey('raw',kp.publicKey); // 65 bayt (04||X||Y)
+  const nonce=crypto.getRandomValues(new Uint8Array(16));
+  const body={deviceId,requireLevel,clientPubHex:hex(raw),nonceHex:hex(nonce)};
+  const r=await fetch('/wvmock/license',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(j.status!=='OK') return {ok:false,status:j.status};
+  // server public key -> shared secret -> HKDF -> session key
+  const serverPub=await crypto.subtle.importKey('raw',hexToBuf(j.serverPubHex),{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const sharedBits=await crypto.subtle.deriveBits({name:'ECDH',public:serverPub},kp.privateKey,256);
+  const hk=await crypto.subtle.importKey('raw',sharedBits,'HKDF',false,['deriveBits']);
+  const skBits=await crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:nonce,info:new TextEncoder().encode('mockwv-session')},hk,256);
+  const sessionKey=await crypto.subtle.importKey('raw',skBits,{name:'AES-GCM'},false,['decrypt']);
+  // wrappedKey = GCM(ct||tag) -> K
+  const ct=hexToBuf(j.wrappedKeyHex), tag=hexToBuf(j.tagHex);
+  const combined=new Uint8Array(ct.length+tag.length); combined.set(ct); combined.set(tag,ct.length);
+  const K=await crypto.subtle.decrypt({name:'AES-GCM',iv:hexToBuf(j.ivHex)},sessionKey,combined);
+  return {ok:true,policy:j.policy,key:new Uint8Array(K)};
+}
+
+async function main(){
+  unblank();
+  const authRes=await fetch('/auth'); if(authRes.status===401){location.href='/login';return;}
+  const token=(await authRes.json()).token;
+  const dev=document.getElementById('dev').value, lvl=document.getElementById('lvl').value;
+  log('1) MockWidevine license so\'ralmoqda (dev='+dev+', require='+lvl+')','muted');
+  const r=await acquireKey(token,dev,lvl);
+  if(!r.ok){ blank('license RAD: '+r.status); log('2) RAD: '+r.status,'bad'); return; }
+  log('2) License OK — K CDM ichida ochildi (tarmoqda ko\'rinmadi). level='+r.policy.securityLevel,'ok');
+  log('   HDCP policy: '+r.policy.hdcp,'muted');
+  // hls.js — kalitni CDM'dan beramiz (/key endpoint ishlatilmaydi)
+  const video=document.getElementById('v');
+  if(!Hls.isSupported()){ log('Hls yo\'q','bad'); return; }
+  const hls=new Hls({
+    // manifest token-gated (MinIO integratsiyasidan keyin) -> drmauthtoken'ni yuboramiz.
+    // Segmentlar cross-origin presigned MinIO URL'lari -> ularga header QO'SHILMAYDI.
+    xhrSetup:(xhr,url)=>{ if(url.indexOf('/hls/index.m3u8')>=0) xhr.setRequestHeader('Authorization','Bearer '+token); }
+  });
+  // custom loader: kalit so'rovi o'rniga CDM ochgan K ni qaytaramiz
+  class KeyLoader extends Hls.DefaultConfig.loader {
+    load(ctx,cfg,callbacks){
+      if(ctx.url.indexOf('/key')>=0){
+        callbacks.onSuccess({url:ctx.url,data:r.key.buffer},{},ctx,{}); return;
+      }
+      super.load(ctx,cfg,callbacks);
+    }
+  }
+  hls.config.loader=KeyLoader;
+  hls.on(Hls.Events.MANIFEST_PARSED,()=>{hls.startLoad();});
+  hls.on(Hls.Events.KEY_LOADED,()=>log('3) K CDM\'dan player\'ga uzatildi (tarmoqsiz)','ok'));
+  hls.on(Hls.Events.FRAG_LOADED,()=>log('4) segment deshifrlanmoqda — o\'ynayapti','ok'));
+  hls.on(Hls.Events.ERROR,(e,d)=>{
+    if(!d.fatal){ log('ℹ️ '+d.details+' (jiddiy emas — player o\'zi tuzatdi, davom etmoqda)','muted'); return; }
+    log('player XATO (fatal): '+d.type+' / '+d.details,'bad');
+    if(d.type===Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();          // tarmoq -> qayta yuklash
+    else if(d.type===Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError(); // media -> tiklash
+    else hls.destroy();
+  });
+  hls.loadSource('/hls/index.m3u8'); hls.attachMedia(video);
+  video.play().catch(()=>{});
+}
+document.getElementById('dev').onchange=()=>location.reload();
+document.getElementById('lvl').onchange=()=>location.reload();
+main();
+</script>
+</body>
+</html>
