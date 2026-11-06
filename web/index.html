@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRM LAB — 1-bosqich</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<style>
+ body{font-family:system-ui,Arial;background:#0f1115;color:#e6e6e6;margin:0;padding:24px;max-width:900px}
+ h1{font-size:20px} video{width:100%;background:#000;border-radius:8px}
+ #log{background:#1a1d24;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px;
+   font-family:monospace;font-size:13px;white-space:pre-wrap;min-height:80px}
+ .ok{color:#6fcf7f}.bad{color:#f06a6a}.muted{color:#8a8f98}
+</style>
+</head>
+<body>
+<h1>DRM LAB — 1-bosqich: AES-128 shifrlangan HLS</h1>
+<video id="v" controls muted playsinline></video>
+<div id="log"></div>
+<script>
+window.__hlslog=[];
+const log=(m,c='')=>{window.__hlslog.push(m);
+  const d=document.getElementById('log'); d.innerHTML+=`<div class="${c}">${m}</div>`;};
+async function main(){
+  log("1) /auth -> token so'ralmoqda...",'muted');
+  const {token,ttl}=await (await fetch('/auth')).json();
+  log('   token OK (TTL '+ttl+'s)','ok');
+  const video=document.getElementById('v');
+  if(!Hls.isSupported()){ video.src='/hls/index.m3u8'; log('native HLS','muted'); return; }
+  const hls=new Hls({
+    xhrSetup:(xhr,url)=>{ if(url.indexOf('/key')>=0) xhr.setRequestHeader('Authorization','Bearer '+token); }
+  });
+  hls.on(Hls.Events.MANIFEST_PARSED,()=>{ log("2) Manifest parsed -> startLoad()",'ok'); hls.startLoad(); });
+  hls.on(Hls.Events.LEVEL_LOADED,()=>log('   LEVEL_LOADED'));
+  hls.on(Hls.Events.KEY_LOADED,()=>log('3) KEY_LOADED (deshifrlash boshlandi)','ok'));
+  hls.on(Hls.Events.FRAG_LOADED,(e,d)=>log('   FRAG '+d.frag.sn+' yuklandi','ok'));
+  hls.on(Hls.Events.ERROR,(e,d)=>log('XATO: '+d.type+' / '+d.details+(d.response?(' ['+d.response.code+']'):''),'bad'));
+  hls.loadSource('/hls/index.m3u8');
+  hls.attachMedia(video);
+  video.play().catch(()=>{});
+}
+main();
+</script>
+</body>
+</html>
