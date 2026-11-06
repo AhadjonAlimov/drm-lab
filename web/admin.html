@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRM LAB — Admin Dashboard</title>
+<style>
+ body{font-family:system-ui,Arial;background:#0f1115;color:#e6e6e6;margin:0;padding:24px}
+ h1{font-size:22px;margin:0 0 4px} .sub{color:#8a8f98;margin-bottom:20px;font-size:13px}
+ .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+ .card{background:#1a1d24;border:1px solid #2b2f3a;border-radius:10px;padding:16px}
+ .card .n{font-size:28px;font-weight:700} .card .l{color:#8a8f98;font-size:12px;margin-top:4px}
+ .ok .n{color:#6fcf7f} .bad .n{color:#f06a6a} .info .n{color:#5aa9f0}
+ h2{font-size:15px;margin:18px 0 8px;color:#c8ccd4}
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #23262f}
+ th{color:#8a8f98;font-weight:600} td.t{color:#8a8f98;font-family:monospace;white-space:nowrap}
+ .tag{padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600}
+ .tag.AUTH{background:#24406b;color:#9cc4ff}.tag.KEY{background:#3a2e5b;color:#c9b6ff}
+ .tag.CLEARKEY{background:#1f4a3a;color:#8fe6c0}.tag.SIGN{background:#4a3a1f;color:#e6cc8f}
+ .tag.WV{background:#4a1f2e;color:#f0a6bf}
+ .tag.WVMOCK{background:#1f3a4a;color:#8fd4e6}
+ .muted{color:#8a8f98}
+</style>
+</head>
+<body>
+<h1>🔐 DRM LAB — Admin Dashboard</h1>
+<div class="sub">Jonli statistika · har 2 soniyada yangilanadi · uptime: <span id="up">–</span></div>
+<div class="grid">
+ <div class="card info"><div class="n" id="tok">0</div><div class="l">Berilgan tokenlar</div></div>
+ <div class="card info"><div class="n" id="act">0</div><div class="l">Aktiv tokenlar</div></div>
+ <div class="card ok"><div class="n" id="key_ok">0</div><div class="l">AES kalit berildi</div></div>
+ <div class="card bad"><div class="n" id="key_denied">0</div><div class="l">AES kalit RAD</div></div>
+ <div class="card ok"><div class="n" id="ck_ok">0</div><div class="l">ClearKey license</div></div>
+ <div class="card bad"><div class="n" id="ck_denied">0</div><div class="l">ClearKey RAD</div></div>
+ <div class="card ok"><div class="n" id="wv_ok">0</div><div class="l">Widevine OK</div></div>
+ <div class="card bad"><div class="n" id="wv_denied">0</div><div class="l">Widevine RAD</div></div>
+ <div class="card ok"><div class="n" id="wm_ok">0</div><div class="l">MockWV license</div></div>
+ <div class="card bad"><div class="n" id="wm_denied">0</div><div class="l">MockWV RAD</div></div>
+</div>
+<h2>Oxirgi hodisalar</h2>
+<table><thead><tr><th>Vaqt</th><th>Turi</th><th>Tafsilot</th><th>IP</th></tr></thead>
+<tbody id="events"></tbody></table>
+<script>
+async function tick(){
+  try{
+    const s=await (await fetch('/stats')).json();
+    const set=(id,v)=>document.getElementById(id).textContent=v;
+    set('up', s.uptime+'s'); set('tok', s.tokensIssued); set('act', s.activeTokens.length);
+    set('key_ok', s.counters.key_ok); set('key_denied', s.counters.key_denied);
+    set('ck_ok', s.counters.clearkey_ok); set('ck_denied', s.counters.clearkey_denied);
+    set('wv_ok', s.counters.wv_ok); set('wv_denied', s.counters.wv_denied);
+    set('wm_ok', s.counters.wvmock_ok||0); set('wm_denied', s.counters.wvmock_denied||0);
+    document.getElementById('events').innerHTML = s.events.map(e=>
+      `<tr><td class="t">${e.t.slice(11,19)}</td><td><span class="tag ${e.type}">${e.type}</span></td>`+
+      `<td>${e.detail}</td><td class="muted">${(e.ip||'').replace('::ffff:','')}</td></tr>`).join('')
+      || '<tr><td colspan=4 class="muted">hali hodisa yoq</td></tr>';
+  }catch(e){}
+}
+tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>
