@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRM LAB — 2-bosqich: CENC + ClearKey</title>
+<script src="https://cdn.jsdelivr.net/npm/shaka-player@4/dist/shaka-player.compiled.js"></script>
+<style>
+ body{font-family:system-ui,Arial;background:#0f1115;color:#e6e6e6;margin:0;padding:24px;max-width:900px}
+ h1{font-size:20px} video{width:100%;background:#000;border-radius:8px}
+ #log{background:#1a1d24;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px;
+   font-family:monospace;font-size:13px;white-space:pre-wrap;min-height:80px}
+ .ok{color:#6fcf7f}.bad{color:#f06a6a}.muted{color:#8a8f98}
+</style>
+</head>
+<body>
+<h1>DRM LAB — 2-bosqich: CENC shifrlangan + ClearKey (EME/CDM)</h1>
+<video id="v" controls muted playsinline></video>
+<div id="log"></div>
+<script>
+window.__log=[];
+const log=(m,c='')=>{window.__log.push(m);
+  const d=document.getElementById('log'); d.innerHTML+=`<div class="${c}">${m}</div>`;};
+async function main(){
+  log("1) /auth -> token so'ralmoqda...",'muted');
+  const authRes=await fetch('/auth'); if(authRes.status===401){location.href='/login';return;}
+  const {token}=await authRes.json();
+  log('   token OK','ok');
+  shaka.polyfill.installAll();
+  if(!shaka.Player.isBrowserSupported()){ log('Brauzer qo\'llab-quvvatlamaydi','bad'); return; }
+  const video=document.getElementById('v');
+  const player=new shaka.Player(video);
+  // ClearKey license serverimiz — token Authorization header bilan
+  player.configure({drm:{servers:{'org.w3.clearkey':'/clearkey'}}});
+  player.getNetworkingEngine().registerRequestFilter((type,request)=>{
+    if(type===shaka.net.NetworkingEngine.RequestType.LICENSE){
+      request.headers['Authorization']='Bearer '+token;
+      log('2) License so\'rovi -> /clearkey (token bilan)','ok');
+    }
+  });
+  player.addEventListener('error',(e)=>log('XATO: '+e.detail.code+' '+(e.detail.message||''),'bad'));
+  try{
+    await player.load('/cenc/manifest.mpd');
+    log('3) Yuklandi -> CDM deshifrlamoqda, o\'ynayapti','ok');
+    video.play().catch(()=>{});
+  }catch(e){ log('LOAD XATO: '+(e.code||e.message),'bad'); }
+}
+main();
+</script>
+</body>
+</html>
