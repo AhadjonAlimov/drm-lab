@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRM LAB — Portal</title>
+<style>
+ body{font-family:system-ui,Arial;background:#0f1115;color:#e6e6e6;margin:0;padding:24px;max-width:860px;margin:0 auto}
+ .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+ h1{font-size:21px;margin:0} .sub{color:#8a8f98;font-size:13px;margin-bottom:22px}
+ a.out{color:#f06a6a;font-size:13px;text-decoration:none}
+ .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+ .card{display:block;text-decoration:none;background:#1a1d24;border:1px solid #2b2f3a;border-radius:12px;padding:18px;color:#e6e6e6}
+ .card:hover{border-color:#3b6fd6}
+ .card h3{margin:0 0 6px;font-size:16px} .card p{margin:0;color:#8a8f98;font-size:13px}
+ .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;margin-bottom:8px}
+ .b1{background:#3a2e5b;color:#c9b6ff}.b2{background:#1f4a3a;color:#8fe6c0}
+ .b3{background:#1f3a4a;color:#8fd4e6}.b4{background:#4a3a1f;color:#e6cc8f}
+</style>
+</head>
+<body>
+<div class="top">
+ <h1>🔐 DRM LAB — Portal</h1>
+ <a class="out" href="/logout">Chiqish ✕</a>
+</div>
+<div class="sub">Kirgansiz · sessiya 12 soat · barcha playerlar drmauthtoken bilan himoyalangan</div>
+<div class="grid">
+ <a class="card" href="/aes.html"><div class="badge b1">1-BOSQICH</div><h3>AES-128 HLS</h3><p>Token-himoyali kalit server. Oddiy shifrlash.</p></a>
+ <a class="card" href="/cenc.html"><div class="badge b2">2-BOSQICH</div><h3>CENC + ClearKey</h3><p>EME/CDM orqali license. Kalit JS'da.</p></a>
+ <a class="card" href="/wvmock.html"><div class="badge b3">4-BOSQICH</div><h3>MockWidevine + HDCP</h3><p>Kalit shifrlangan · device/L3 enforcement · software-HDCP.</p></a>
+ <a class="card" href="/admin.html"><div class="badge b4">ADMIN</div><h3>Dashboard</h3><p>Jonli statistika: tokenlar, license so'rovlari, hodisalar.</p></a>
+</div>
+</body>
+</html>
