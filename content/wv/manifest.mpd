@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--Generated with https://github.com/shaka-project/shaka-packager version v3.9.3-0a8ba4f-release-->
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd" xmlns:cenc="urn:mpeg:cenc:2013" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011" minBufferTime="PT2S" type="static" mediaPresentationDuration="PT30S">
+  <Period id="0">
+    <AdaptationSet id="1" contentType="audio" subsegmentStartsWithSAP="1" subsegmentAlignment="true">
+      <ContentProtection value="cenc" schemeIdUri="urn:mpeg:dash:mp4protection:2011" cenc:default_KID="273ea874-d385-3f16-41d9-2cafacd35879"/>
+      <ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed">
+        <cenc:pssh>AAAASnBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAACoSECc+qHTThT8WQdksr6zTWHkSECc+qHTThT8WQdksr6zTWHlI49yVmwY=</cenc:pssh>
+      </ContentProtection>
+      <Representation id="0" bandwidth="75036" codecs="mp4a.40.2" mimeType="audio/mp4" audioSamplingRate="44100">
+        <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1"/>
+        <BaseURL>audio.mp4</BaseURL>
+        <SegmentBase indexRange="987-1078" timescale="44100">
+          <Initialization range="0-986"/>
+        </SegmentBase>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet id="0" contentType="video" width="1280" height="720" frameRate="15360/512" subsegmentAlignment="true" par="16:9">
+      <ContentProtection value="cenc" schemeIdUri="urn:mpeg:dash:mp4protection:2011" cenc:default_KID="273ea874-d385-3f16-41d9-2cafacd35879"/>
+      <ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed">
+        <cenc:pssh>AAAASnBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAACoSECc+qHTThT8WQdksr6zTWHkSECc+qHTThT8WQdksr6zTWHlI49yVmwY=</cenc:pssh>
+      </ContentProtection>
+      <Representation id="1" bandwidth="134301" codecs="avc1.64001f" mimeType="video/mp4" sar="1:1">
+        <BaseURL>video.mp4</BaseURL>
+        <SegmentBase indexRange="1032-1111" timescale="15360">
+          <Initialization range="0-1031"/>
+        </SegmentBase>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>
